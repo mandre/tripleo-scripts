@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -e
-
 TARGET_HOST=$1
 
 if [ "x$TARGET_HOST" = "x" ]; then
