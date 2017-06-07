@@ -3,6 +3,7 @@
 set -e
 
 TARGET_HOST=$1
+TRIPLEO_COMMON_PATH=/home/stack/tripleo-common
 
 if [ "x$TARGET_HOST" = "x" ]; then
 	TARGET_HOST='gouda'
@@ -39,12 +40,23 @@ else
   source ~/kolla-venv/bin/activate
 fi
 
+cat > /tmp/kolla-build.conf <<-EOF_CAT
+[DEFAULT]
+base=centos
+type=binary
+# Comma separated list of .rpm or .repo file(s) or URL(s) to install
+# before building containers (list value)
+#rpm_setup_config = http://buildlogs.centos.org/centos/7/cloud/x86_64/rdo-trunk-master-tested/delorean.repo,http://trunk.rdoproject.org/centos7/delorean-deps.repo
+rpm_setup_config = http://trunk.rdoproject.org/centos7/current/delorean.repo,http://trunk.rdoproject.org/centos7/delorean-deps.repo
+#rpm_setup_config = http://trunk.rdoproject.org/centos7/current-tripleo/delorean.repo,http://trunk.rdoproject.org/centos7/delorean-deps.repo
+EOF_CAT
+
 cat >/home/stack/kolla_images.sh <<-EOF
 #!/usr/bin/env python
 
 import yaml
 
-with open("/usr/share/tripleo-common/contrib/overcloud_containers.yaml",
+with open("${TRIPLEO_COMMON_PATH}/container-images/overcloud_containers.yaml",
           'r') as overcloud_images:
     try:
         images = yaml.safe_load(overcloud_images)
@@ -56,13 +68,14 @@ EOF
 chmod a+x /home/stack/kolla_images.sh
 
 time ./tools/build.py \
+  --config-file /tmp/kolla-build.conf \
   --base centos \
   --type binary \
   --namespace tripleoupstream \
   --registry 192.168.24.1:8787 \
   --tag latest \
   --push \
-  --template-override /usr/share/openstack-tripleo-common/contrib/tripleo_kolla_template_overrides.j2  \
+  --template-override ${TRIPLEO_COMMON_PATH}/container-images/tripleo_kolla_template_overrides.j2  \
   $(~/kolla_images.sh)
 cd
 deactivate
