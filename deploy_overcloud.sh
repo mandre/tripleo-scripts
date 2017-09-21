@@ -19,6 +19,14 @@ fi
 
 # Below runs on $TARGET_HOST
 
+cat > ~/.ssh/config <<EOF
+Host *
+User heat-admin
+StrictHostkeyChecking no
+UserKnownHostsFile /dev/null
+EOF
+chmod 600 ~/.ssh/config
+
 LOCAL_IP=192.168.24.1
 
 cat >/home/stack/custom.yaml <<-EOF
@@ -27,9 +35,28 @@ parameter_defaults:
   ControlPlaneDefaultRoute: $LOCAL_IP
   DockerNamespace: $LOCAL_IP:8787/tripleoupstream
   DockerNamespaceIsRegistry: true
+  MonitoringRabbitHost: 10.10.10.10
+  MonitoringRabbitPort: 5672
+  MonitoringRabbitUserName: sensu
+  MonitoringRabbitPassword: sensu
+  MonitoringRabbitUseSSL: false
+  MonitoringRabbitVhost: "/sensu"
+  SensuClientCustomConfig:
+    api:
+      warning: 10
+      critical: 20
 EOF
 
 source stackrc
 openstack stack delete --yes --wait overcloud
-mistral environment-delete overcloud
-openstack overcloud deploy --templates /home/stack/tripleo-heat-templates/ -e /home/stack/tripleo-heat-templates/environments/docker.yaml -e /home/stack/tripleo-heat-templates/environments/network-isolation.yaml -e /home/stack/tripleo-heat-templates/environments/net-single-nic-with-vlans.yaml -e /home/stack/custom.yaml --libvirt-type qemu
+# mistral environment-delete overcloud
+# swift delete overcloud
+time openstack overcloud deploy \
+  --templates /home/stack/tripleo-heat-templates/ \
+  -e /home/stack/tripleo-heat-templates/environments/docker.yaml \
+  -e /home/stack/tripleo-heat-templates/environments/network-isolation.yaml \
+  -e /home/stack/tripleo-heat-templates/environments/net-single-nic-with-vlans.yaml \
+  -e /home/stack/network-environment.yaml \
+  -e /home/stack/containers-default-parameters.yaml \
+  --libvirt-type qemu
+  # -e /home/stack/custom.yaml \
